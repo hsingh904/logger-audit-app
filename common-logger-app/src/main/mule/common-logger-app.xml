@@ -1,0 +1,40 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<mule xmlns:ee="http://www.mulesoft.org/schema/mule/ee/core" xmlns:db="http://www.mulesoft.org/schema/mule/db"
+	xmlns="http://www.mulesoft.org/schema/mule/core"
+	xmlns:doc="http://www.mulesoft.org/schema/mule/documentation" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://www.mulesoft.org/schema/mule/core http://www.mulesoft.org/schema/mule/core/current/mule.xsd
+http://www.mulesoft.org/schema/mule/db http://www.mulesoft.org/schema/mule/db/current/mule-db.xsd
+http://www.mulesoft.org/schema/mule/ee/core http://www.mulesoft.org/schema/mule/ee/core/current/mule-ee.xsd">
+	<db:config name="Database_Config_Common_logger" doc:name="Database Config" doc:id="f2c53edd-38fc-4d66-88e7-a313eec7047d" >
+		<db:my-sql-connection host="localhost" port="3306" user="root" password="admin" database="mule" />
+	</db:config>
+	<flow name="common-logger-appFlow" doc:id="3da8c325-0f56-4757-b22d-73ad0634e6bd" >
+		<logger level="DEBUG" doc:name="Start Logger" doc:id="b6dfa283-e7e7-4c92-a195-a052ff459860" message="Start Logger || CorrelationId: #[vars.correlationId] ||  Flow Name: #[vars.flowName]"/>
+		<try doc:name="Try" doc:id="ffa66185-b285-4bf5-931b-2c56e78c7ebc" >
+			<db:insert doc:name="Insert" doc:id="7d2af382-df20-4d90-b95c-7831a5429343" config-ref="Database_Config_Common_logger">
+			<db:sql>insert into logger (correlationId,flowName, processorName, payload) values (:correlationId, :flowName, :processorName, :tempPayload);</db:sql>
+			<db:input-parameters><![CDATA[#[{
+	correlationId: vars.correlationId,
+	flowName: vars.flowName,
+	processorName: vars.processorName,
+	tempPayload: write(payload, "application/json")
+}]]]></db:input-parameters>
+		</db:insert>
+			<error-handler >
+				<on-error-continue enableNotifications="true" logException="true" doc:name="On Error Continue" doc:id="eb141c80-5e36-4563-9a1a-486440f51179" >
+					<ee:transform doc:name="Transform Message" doc:id="52ba9705-488e-48f9-9dad-c09cab62e968" >
+						<ee:message >
+							<ee:set-payload ><![CDATA[%dw 2.0
+output application/json
+---
+{
+	message: "Error while database operation"
+}]]></ee:set-payload>
+						</ee:message>
+					</ee:transform>
+				</on-error-continue>
+			</error-handler>
+		</try>
+		<logger level="DEBUG" doc:name="End Logger" doc:id="ef6ec756-aee8-4c75-811d-8b402f293f84" message="End Logger || CorrelationId: #[vars.correlationId] ||  Flow Name: #[vars.flowName]"/>
+	</flow>
+</mule>
